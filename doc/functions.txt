@@ -1,0 +1,67 @@
+pmcrypto:
+  lib:
+    utils.js
+      - encodeUtf8
+      - decodeUtf8
+      - encodeBase64
+      - decodeBase64
+      - encodeUtf8Base64
+      - decodeUtf8Base64
+      - binaryStringToArray
+      - arrayToBinaryString
+      - arrayToHexString
+      - concatArrays
+      - SHA256
+      - SHA512
+      - unsafeMD5
+      - unsafeSHA1
+      - stripArmor
+      - getMaxConcurrency
+      - createWorker
+    mail.js
+      - checkMailboxPassword
+    key:
+      utils.js:
+        - getPreferredAlgorithm
+        - getKeys
+        - isExpiredKey
+        - compressKey
+        - getMatchingKey
+        - cloneKey
+        - genPublicEphemeralKey
+        - genPrivateEphemeralKey
+        - generateKey
+        - generateSessionKey
+        - reformatKey
+        - getFingerprint
+      check.js
+        - keyCheck
+        - dateChecks
+      decrypt.js
+        - decryptPrivateKey
+        - decryptSessionKey
+      encrypt.js
+        - encryptPrivateKey
+        - encryptSessionKey
+      info.js
+        - getSHA256Fingerprints
+        - keyInfo
+    message:
+      utils.js
+        - getMessage
+        - getSignature
+        - getCleartextMessage
+        - splitMessage
+        - armorBytes
+        - createCleartextMessage
+        - createMessage
+        - signMessage
+        - verifyMessage
+      enrypt.js
+        - encryptMessage
+      decrypt.js
+        - decryptMessage
+        - decryptMIMEMessage
+      processMIME.js
+        - parseMail
+        - processMIME
