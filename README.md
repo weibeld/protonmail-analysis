@@ -9,5 +9,5 @@ The focus is on the account creation stage, in particular, how a user's private 
 Here's a list of currently active ProtonMail accounts that can be used for testing:
 
 | Username   | Password |
-|------------|----------|
-| uhzgslvtph | 12345678 |
+|------------|:--------:|
+| uhzgslvtph | ***      |
