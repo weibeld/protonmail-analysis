@@ -166,7 +166,7 @@ from pgpy.packet.fields import String2Key
 from pgpy.constants import SymmetricKeyAlgorithm, HashAlgorithm, String2KeyType
 
 def main(args):
-    data = base64.b64decode(sys.stdin.read())
+    data = sys.stdin.buffer.read()
     password = bytes(args['<password>'], 'utf-8')
     salt = base64.b64decode(args['<salt>'])
 
@@ -176,11 +176,10 @@ def main(args):
 
     if args['encrypt']:
         ciphertext = aes256_encrypt(data, key)
-        #sys.stdout.buffer.write(ciphertext)
-        print(str(base64.b64encode(ciphertext), 'utf-8'))
+        sys.stdout.buffer.write(ciphertext)
     elif args['decrypt']:
         plaintext = aes256_decrypt(data, key)
-        print(str(base64.b64encode(plaintext), 'utf-8'))
+        sys.stdout.buffer.write(plaintext)
 
 # Format a byte array as a string of hexadecimal digits 
 # Args:
