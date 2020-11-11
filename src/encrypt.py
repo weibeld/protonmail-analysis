@@ -134,6 +134,27 @@
 #    =Niwe
 #    -----END PGP PRIVATE KEY BLOCK-----
 
+"""ProtonMail private key encryption simulation
+
+Simulate the encryption/decryption of a private key in ProtonMail given a user
+password and a salt. The data to encrypt/decrypt is read from stdin, output is
+written to stdout. Input can be optionally specified as an armored PGP key.
+
+Usage:
+  pm.py encrypt [-a|--armored] <password> <salt>
+  pm.py decrypt [-a|--armored] <password> <salt>
+  pm.py (-h|--help)
+
+Arguments:
+  <password>  An arbitrary user password
+  <salt>      A random salt of 16 bytes (128 bits), Base64-encoded
+
+Options:
+  -a --armored  Interpret input as armored PGP key (encryption) or write output
+                as armored PGP key (decryption)
+  -h --help     Show this help message
+"""
+from docopt import docopt
 import sys
 import os
 import base64
@@ -144,39 +165,22 @@ from cryptography.hazmat.primitives import padding
 from pgpy.packet.fields import String2Key
 from pgpy.constants import SymmetricKeyAlgorithm, HashAlgorithm, String2KeyType
 
-def usage():
-    print("""USAGE
-  %s privkey pw salt
+def main(args):
+    data = base64.b64decode(sys.stdin.read())
+    password = bytes(args['<password>'], 'utf-8')
+    salt = base64.b64decode(args['<salt>'])
 
-ARGS
-  privkey: RSA private key in armored ASCII format
-  pw:      User password
-  salt:    Salt for password hashing (24 Base64 characters)""" % os.path.basename(sys.argv[0]))
-
-def main():
-    #if len(sys.argv) != 4:
-    #    usage()
-    #    sys.exit(1)
-    data = sys.argv[1]
-    password = sys.argv[2]
-    #password = "12345678"
-    salt = sys.argv[3]
-    #salt = "4v8jf5fB1X1U/ougn9hDBg=="
-
-    data = base64.b64decode(data)
-    password = bytes(password, 'utf-8')
-    salt = base64.b64decode(salt)
-
-    print(f"Plaintext: {format(data)}");
-
+    # Derive AES256 encryption/decryption key
     password_hash = hash_password(password, salt)
     key = s2k(password_hash)
 
-    ciphertext = aes256_encrypt(data, key)
-    print(f"Ciphertext: {format(ciphertext)}");
-
-    plaintext = aes256_decrypt(ciphertext, key)
-    print(f"Plaintext: {format(plaintext)}");
+    if args['encrypt']:
+        ciphertext = aes256_encrypt(data, key)
+        #sys.stdout.buffer.write(ciphertext)
+        print(str(base64.b64encode(ciphertext), 'utf-8'))
+    elif args['decrypt']:
+        plaintext = aes256_decrypt(data, key)
+        print(str(base64.b64encode(plaintext), 'utf-8'))
 
 # Format a byte array as a string of hexadecimal digits 
 # Args:
@@ -185,14 +189,6 @@ def main():
 #   (str): a string of space-separated hexadecimal digits (e.g. "E6 73 D2")
 def format(arr):
     return ''.join(" {:02X}".format(e) for e in arr).strip()
-
-#    print("Data: %s" % base64.b64encode(data))
-#
-#    ciphertext = aes256_encrypt(data, key)
-#    print("Ciphertext: %s" % ciphertext)
-#
-#    plaintext = aes256_decrypt(ciphertext, key)
-#    print("Plaintext: %s" % base64.b64encode(plaintext))
 
 # Encrypt data
 # Args:
@@ -224,6 +220,7 @@ def aes256_encrypt(plaintext, key):
 
     # Encrypt
     iv = os.urandom(16)
+    #iv = bytes("baaaaaaaaaaaaaaa", 'utf-8')
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
     encryptor = cipher.encryptor()
     return iv + encryptor.update(plaintext) + encryptor.finalize()
@@ -283,4 +280,5 @@ def hash_password(password, salt):
     return password_hash[29:]
 
 if __name__ == '__main__':
-    main()
+    args = docopt(__doc__)
+    main(args)
