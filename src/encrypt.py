@@ -156,10 +156,10 @@ def main():
     #if len(sys.argv) != 4:
     #    usage()
     #    sys.exit(1)
-    #data = sys.argv[1]
-    #password = sys.argv[2]
+    data = sys.argv[1]
+    password = sys.argv[2]
     #password = "12345678"
-    #salt = sys.argv[3]
+    salt = sys.argv[3]
     #salt = "4v8jf5fB1X1U/ougn9hDBg=="
 
     #print("Data: %s\nPassword: %s\nSalt: %s" % (data, password, salt))
@@ -170,12 +170,20 @@ def main():
     #plaintext = decrypt(ciphertext, password, salt, initvector)
     #print("Plaintext: %s" % str(plaintext, 'utf-8'))
 
-    ciphertext = aes256_encrypt(b"helloworld", b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+    data = base64.b64decode(data)
+    password = bytes(password, 'utf-8')
+    salt = base64.b64decode(salt)
+
+    password_hash = hash_password(password, salt)
+    key = s2k(password_hash)
+
+    print("Data: %s" % base64.b64encode(data))
+
+    ciphertext = aes256_encrypt(data, key)
     print("Ciphertext: %s" % ciphertext)
 
-    plaintext = aes256_decrypt(ciphertext, b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-    print("Plaintext: %s" % str(plaintext, 'utf-8'))
-
+    plaintext = aes256_decrypt(ciphertext, key)
+    print("Plaintext: %s" % base64.b64encode(plaintext))
 
 # Encrypt data
 # Args:
@@ -229,19 +237,18 @@ def aes256_decrypt(ciphertext, key):
     return unpadder.update(plaintext) + unpadder.finalize()
 
 
-
 # Generate an AES256 key from a string
 # Args:
-#   string (str): the string to derive the key from
+#   secret (bytes): the secret to derive the key from
 # Returns:
 #   bytes: a valid AES256 key (256 bits = 32 bytes)
-#def s2k(string):
-
+def s2k(secret):
+    return os.urandom(32) #secret
 
 # Calculate the hash of a password
 # Args:
-#   password (str): a password of arbitrary length
-#   salt (bytes):   an arbitrary salt of 128 bits (16 bytes)
+#   password (bytes): a password of arbitrary length
+#   salt (bytes):     an arbitrary salt of 128 bits (16 bytes)
 # Returns:
 #   str: the hash of the password
 def hash_password(password, salt):
@@ -255,10 +262,10 @@ def hash_password(password, salt):
     salt_base64 = bytes("$2y$10$", 'utf-8') + _bcrypt.ffi.string(salt_base64)
 
     # Compute the has of the password
-    password_hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt_base64)
+    password_hash = bcrypt.hashpw(password, salt_base64)
 
-    # Cut off the first 29 characters (prefix and salt) and return the rest
-    return str(password_hash[29:], 'utf-8')
+    # Cut off the first 29 bytes (prefix and salt) and return the rest
+    return password_hash[29:]
 
 if __name__ == '__main__':
     main()
