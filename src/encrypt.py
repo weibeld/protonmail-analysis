@@ -141,7 +141,8 @@ import bcrypt
 import _bcrypt
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
-
+from pgpy.packet.fields import String2Key
+from pgpy.constants import SymmetricKeyAlgorithm, HashAlgorithm, String2KeyType
 
 def usage():
     print("""USAGE
@@ -162,28 +163,36 @@ def main():
     salt = sys.argv[3]
     #salt = "4v8jf5fB1X1U/ougn9hDBg=="
 
-    #print("Data: %s\nPassword: %s\nSalt: %s" % (data, password, salt))
-
-    #ciphertext = encrypt(bytes(data, 'utf-8'), password, salt, initvector)
-    #print("Ciphertext: %s" % ciphertext)
-
-    #plaintext = decrypt(ciphertext, password, salt, initvector)
-    #print("Plaintext: %s" % str(plaintext, 'utf-8'))
-
     data = base64.b64decode(data)
     password = bytes(password, 'utf-8')
     salt = base64.b64decode(salt)
 
+    print(f"Plaintext: {format(data)}");
+
     password_hash = hash_password(password, salt)
     key = s2k(password_hash)
 
-    print("Data: %s" % base64.b64encode(data))
-
     ciphertext = aes256_encrypt(data, key)
-    print("Ciphertext: %s" % ciphertext)
+    print(f"Ciphertext: {format(ciphertext)}");
 
     plaintext = aes256_decrypt(ciphertext, key)
-    print("Plaintext: %s" % base64.b64encode(plaintext))
+    print(f"Plaintext: {format(plaintext)}");
+
+# Format a byte array as a string of hexadecimal digits 
+# Args:
+#   arr (bytes): a byte array
+# Return:
+#   (str): a string of space-separated hexadecimal digits (e.g. "E6 73 D2")
+def format(arr):
+    return ''.join(" {:02X}".format(e) for e in arr).strip()
+
+#    print("Data: %s" % base64.b64encode(data))
+#
+#    ciphertext = aes256_encrypt(data, key)
+#    print("Ciphertext: %s" % ciphertext)
+#
+#    plaintext = aes256_decrypt(ciphertext, key)
+#    print("Plaintext: %s" % base64.b64encode(plaintext))
 
 # Encrypt data
 # Args:
@@ -242,8 +251,14 @@ def aes256_decrypt(ciphertext, key):
 #   secret (bytes): the secret to derive the key from
 # Returns:
 #   bytes: a valid AES256 key (256 bits = 32 bytes)
-def s2k(secret):
-    return os.urandom(32) #secret
+def s2k(passphrase):
+    s2k = String2Key()
+    s2k.salt = b'aaaaaaaa'                 # TODO: what salt to use?
+    # s2k.usage = String2KeyType.Iterated  # TODO: not sure if needed
+    s2k.specifier = String2KeyType.Iterated
+    s2k.encalg = SymmetricKeyAlgorithm.AES256
+    s2k.halg = HashAlgorithm.SHA256
+    return s2k.derive_key(str(passphrase, 'utf-8'))
 
 # Calculate the hash of a password
 # Args:
