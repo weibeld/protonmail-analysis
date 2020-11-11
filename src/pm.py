@@ -155,8 +155,9 @@ Options:
   -h --help     Show this help message
 """
 from docopt import docopt
-import sys
 import os
+import sys
+import re
 import base64
 import bcrypt
 import _bcrypt
@@ -175,11 +176,52 @@ def main(args):
     key = s2k(password_hash)
 
     if args['encrypt']:
+        if args['--armored']:
+            data = unarmor(data)
         ciphertext = aes256_encrypt(data, key)
+        if args['--armored']:
+            ciphertext = armor(ciphertext)
         sys.stdout.buffer.write(ciphertext)
     elif args['decrypt']:
+        if args['--armored']:
+            data = unarmor(data)
         plaintext = aes256_decrypt(data, key)
+        if args['--armored']:
+            plaintext = armor(plaintext)
         sys.stdout.buffer.write(plaintext)
+
+# Convert a PGP private key into the armored ASCII format
+# Args:
+#   data (bytes): the private key
+# Return:
+#   bytes: the private key in ASCII armored format
+def armor(data):
+    # TODO: calculate and include checksum in output
+    key = str(base64.b64encode(data), 'utf-8')
+    key = re.sub("(.{64})", "\\1\n", key, 0, re.DOTALL).strip()
+    return bytes(f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+{key}
+=xxxx
+-----END PGP PRIVATE KEY BLOCK-----
+""", 'utf-8')
+
+# Extract the key data from an ASCII armored PGP key
+# Args:
+#   data (bytes): an ASCII armored PGP key
+# Return:
+#   bytes: the extracted key data
+def unarmor(data):
+    data = str(data, 'utf-8')
+    lines = data.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r'^$', line):
+            start = i+1
+        if re.match(r'^=', line):
+            end = i
+    # TODO: extract and verify checksum
+    return base64.b64decode(''.join(lines[start:end]))
+
 
 # Format a byte array as a string of hexadecimal digits 
 # Args:
