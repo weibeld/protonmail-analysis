@@ -139,6 +139,9 @@ import os
 import base64
 import bcrypt
 import _bcrypt
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+
 
 def usage():
     print("""USAGE
@@ -153,32 +156,109 @@ def main():
     #if len(sys.argv) != 4:
     #    usage()
     #    sys.exit(1)
-    privkey = sys.argv[1]
-    password = sys.argv[2]
+    #data = sys.argv[1]
+    #password = sys.argv[2]
     #password = "12345678"
-    salt = sys.argv[3]
+    #salt = sys.argv[3]
     #salt = "4v8jf5fB1X1U/ougn9hDBg=="
 
-    print(get_password_hash(password, salt))
+    #print("Data: %s\nPassword: %s\nSalt: %s" % (data, password, salt))
+
+    #ciphertext = encrypt(bytes(data, 'utf-8'), password, salt, initvector)
+    #print("Ciphertext: %s" % ciphertext)
+
+    #plaintext = decrypt(ciphertext, password, salt, initvector)
+    #print("Plaintext: %s" % str(plaintext, 'utf-8'))
+
+    ciphertext = aes256_encrypt(b"helloworld", b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+    print("Ciphertext: %s" % ciphertext)
+
+    plaintext = aes256_decrypt(ciphertext, b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+    print("Plaintext: %s" % str(plaintext, 'utf-8'))
+
+
+# Encrypt data
+# Args:
+#   data (bytes):    the data to encrypt
+#   password (str):  the password with which to encrypt the data
+#   salt (str)       a random salt for  hashing the password
+# Returns:
+#   bytes:  the encrypted data
+#def encrypt(data, password, salt, initvector):
+    # - If private key is armored, unarmor it (only the body, without delimiters, comments, and checksum) -> byte array
+    #     - Unarmor: extract body > delete newlines > Base64-decode
+    #     - Armor: Base64-encode > insert newline after each group of 60 characters
+    #              Get CRC-24 checksum of body > Base64-encode the checksum
+    #              Concatenate the following components: "-----BEGIN PGP PUBLIC KEY BLOCK-----", newline, Base64-encoded key, "=" and Base64-encoded checksum, "-----END PGP PUBLIC KEY BLOCK-----"
+    # - Derive an AES256 key from the passwd
+    # - Encrypt the byte array with AES256 and the derived key
+    # - Armor the encrypted key and return it
+
+# Encrypt data with AES256 and the provided key
+# Args:
+#   plaintext (bytes): the data to ecnrypt
+#   key (bytes):       an AES256 encryption key
+# Returns:
+#   bytes: the encrypted data
+def aes256_encrypt(plaintext, key):
+    # Padding data to block size of AES CBC mode (128 bits = 16 bytes)
+    padder = padding.PKCS7(128).padder()
+    plaintext = padder.update(plaintext) + padder.finalize()
+
+    # Encrypt
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    return iv + encryptor.update(plaintext) + encryptor.finalize()
+
+# Decrypt data with AES256 and the provided key
+# Args:
+#   ciphertext (bytes): the ciphertext to decrypt
+#   key (bytes):        the AES256 key that was used for encrypting the data
+# Returns:
+#   bytes: the decrypted data
+def aes256_decrypt(ciphertext, key):
+    # Decrypt
+    iv, ciphertext = ciphertext[:16], ciphertext[16:]
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    decryptor = cipher.decryptor()
+    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+    # Remove padding
+    unpadder = padding.PKCS7(128).unpadder()
+    return unpadder.update(plaintext) + unpadder.finalize()
+
+
+
+# Generate an AES256 key from a string
+# Args:
+#   string (str): the string to derive the key from
+# Returns:
+#   bytes: a valid AES256 key (256 bits = 32 bytes)
+#def s2k(string):
+
 
 # Calculate the hash of a password
 # Args:
-#   password (str): the password to hash
-#   salt (str):     a Base64-encoded salt with a length of 128 bits
+#   password (str): a password of arbitrary length
+#   salt (bytes):   an arbitrary salt of 128 bits (16 bytes)
 # Returns:
 #   str: the hash of the password
-def get_password_hash(password, salt):
+def hash_password(password, salt):
     # Transform salt to bcrypt's Base64 format
-    salt = base64.b64decode(salt)
-    salt_bcrypt = _bcrypt.ffi.new("char[]", 30)
-    _bcrypt.lib.encode_base64(salt_bcrypt, salt, 16)
+    #salt = base64.b64decode(salt)
+    # Encode salt in bcrypt's Base64 format
+    salt_base64 = _bcrypt.ffi.new("char[]", 30)
+    _bcrypt.lib.encode_base64(salt_base64, salt, 16)
 
-    # Prepend bcrypt prefix to salt
-    salt = bytes("$2y$10$", 'utf-8') + _bcrypt.ffi.string(salt_bcrypt)
+    # Prepend bcrypt prefix to Base64-encoded salt
+    salt_base64 = bytes("$2y$10$", 'utf-8') + _bcrypt.ffi.string(salt_base64)
 
-    # Caculate password hash (cut off the first 29 characters, which is the salt
-    # including the bcrypt prefix)
-    return str(bcrypt.hashpw(bytes(password, 'utf-8'), salt)[29:], 'utf-8')
+    # Compute the has of the password
+    password_hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt_base64)
+
+    # Cut off the first 29 characters (prefix and salt) and return the rest
+    return str(password_hash[29:], 'utf-8')
 
 if __name__ == '__main__':
     main()
