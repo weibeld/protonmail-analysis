@@ -50,20 +50,19 @@ def main(args):
     hash = password_hash(password, salt)
     key = s2k(hash)
 
+    if args['--armored']:
+        data = unarmor(data)
+
     if args['encrypt']:
-        if args['--armored']:
-            data = unarmor(data)
-        ciphertext = aes256_encrypt(data, key)
-        if args['--armored']:
-            ciphertext = armor(ciphertext)
-        sys.stdout.buffer.write(ciphertext)
+        result = aes256_encrypt(data, key)
     elif args['decrypt']:
-        if args['--armored']:
-            data = unarmor(data)
-        plaintext = aes256_decrypt(data, key)
-        if args['--armored']:
-            plaintext = armor(plaintext)
-        sys.stdout.buffer.write(plaintext)
+        result = aes256_decrypt(data, key)
+
+    if args['--armored']:
+        result = armor(result)
+
+    sys.stdout.buffer.write(result)
+    
 
 def armor(data):
     """Convert a PGP private key into ASCII armored format. The ASCII armored
