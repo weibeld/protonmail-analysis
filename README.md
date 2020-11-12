@@ -1,8 +1,14 @@
-# ProtonMail Analysis
+# ProtonMail Security Analysis
 
-Cryptographic analysis of [ProtonMail](https://protonmail.com/).
+[ProtonMail](https://protonmail.com/) is an email service providing end-to-end encryption for emails between ProtonMail users as well as between ProtonMail users and other [Pretty Good Privacy (PGP)](https://www.openpgp.org/) compatible senders and receivers.
 
-The focus is on the account creation stage, in particular, how a user's private key is generated, encrypted, and stored on the ProtonMail server.
+The goal of this repository is to analyse the claimed security of ProtonMail, in particular, the encryption and management of the users' private keys.
+
+## Contents
+
+### Simulation
+
+The [src/](src) directory contains a Python script that simulates the encryption of a PGP private key given a user password, as done by ProtonMail.
 
 ## ProtonMail accounts
 
