@@ -161,10 +161,12 @@ import re
 import base64
 import bcrypt
 import _bcrypt
+import libscrc
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from pgpy.packet.fields import String2Key
 from pgpy.constants import SymmetricKeyAlgorithm, HashAlgorithm, String2KeyType
+
 
 def main(args):
     data = sys.stdin.buffer.read()
@@ -191,37 +193,48 @@ def main(args):
         sys.stdout.buffer.write(plaintext)
 
 # Convert a PGP private key into the armored ASCII format
+# OpenPGP ASCII armor format: https://tools.ietf.org/html/rfc4880#section-6
 # Args:
 #   data (bytes): the private key
 # Return:
 #   bytes: the private key in ASCII armored format
 def armor(data):
-    # TODO: calculate and include checksum in output
+    checksum = crc24(data)
     key = str(base64.b64encode(data), 'utf-8')
     key = re.sub("(.{60})", "\\1\n", key, 0, re.DOTALL).strip()
     return bytes(f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 {key}
-=xxxx
+={checksum}
 -----END PGP PRIVATE KEY BLOCK-----
 """, 'utf-8')
 
 # Extract the key data from an ASCII armored PGP key
+# OpenPGP ASCII armor format: https://tools.ietf.org/html/rfc4880#section-6
 # Args:
 #   data (bytes): an ASCII armored PGP key
 # Return:
 #   bytes: the extracted key data
-def unarmor(data):
-    data = str(data, 'utf-8')
-    lines = data.splitlines()
+def unarmor(text):
+    text = str(text, 'utf-8')
+    lines = text.splitlines()
+    first, last = None, None
     for i, line in enumerate(lines):
         if re.match(r'^$', line):
-            start = i+1
+            if first == None: first = i+1
         if re.match(r'^[^0-9a-zA-Z+/]', line):
-            end = i
-    # TODO: extract and verify checksum
-    return base64.b64decode(''.join(lines[start:end]))
+            if first != None and last == None: last = i-1
+    data = base64.b64decode(''.join(lines[first:last+1]))
+    # Verify checksum if present
+    if re.match(r'^=', lines[last+1]):
+        wanted = lines[last+1][1:]
+        actual = crc24(data)
+        if wanted != actual:
+            raise RuntimeError(f"Checksum verification failed for ASCII armored input: got '{actual}', wanted '{wanted}'")
+    return data
 
+def crc24(data):
+    return str(base64.b64encode(libscrc.openpgp(data).to_bytes(3, 'big')), 'utf-8')
 
 # Format a byte array as a string of hexadecimal digits 
 # Args:
