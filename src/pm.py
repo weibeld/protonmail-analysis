@@ -198,7 +198,7 @@ def main(args):
 def armor(data):
     # TODO: calculate and include checksum in output
     key = str(base64.b64encode(data), 'utf-8')
-    key = re.sub("(.{64})", "\\1\n", key, 0, re.DOTALL).strip()
+    key = re.sub("(.{60})", "\\1\n", key, 0, re.DOTALL).strip()
     return bytes(f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 {key}
@@ -217,7 +217,7 @@ def unarmor(data):
     for i, line in enumerate(lines):
         if re.match(r'^$', line):
             start = i+1
-        if re.match(r'^=', line):
+        if re.match(r'^[^0-9a-zA-Z+/]', line):
             end = i
     # TODO: extract and verify checksum
     return base64.b64decode(''.join(lines[start:end]))
