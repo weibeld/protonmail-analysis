@@ -125,15 +125,12 @@ def aes256_encrypt(plaintext, key):
     Returns:
         bytes: the encrypted data
     """
-    # Padding data to block size of AES CBC mode (128 bits = 16 bytes)
-    padder = padding.PKCS7(128).padder()
-    plaintext = padder.update(plaintext) + padder.finalize()
-    # TODO: what initialisation vector to use?
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    # In ProtonMail, the initialisation vector is generated randomly and
+    # included in the private key packet (see RFC 4880 §5.5.3)
+    iv = b'aaaaaaaaaaaaaaaa'  # os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
     encryptor = cipher.encryptor()
-    # TODO: how to include the initialisation vector in the ciphertext?
-    return iv + encryptor.update(plaintext) + encryptor.finalize()
+    return encryptor.update(plaintext) + encryptor.finalize()
 
 def aes256_decrypt(ciphertext, key):
     """Decrypt ciphertext with AES-256 CBC mode and the provided key.
@@ -143,14 +140,10 @@ def aes256_decrypt(ciphertext, key):
     Returns:
         bytes: the decrypted data
     """
-    # TODO: how to handle the initialisation vector?
-    iv, ciphertext = ciphertext[:16], ciphertext[16:]
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    iv = b'aaaaaaaaaaaaaaaa' 
+    cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
     decryptor = cipher.decryptor()
-    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-    # Remove padding
-    unpadder = padding.PKCS7(128).unpadder()
-    return unpadder.update(plaintext) + unpadder.finalize()
+    return decryptor.update(ciphertext) + decryptor.finalize()
 
 def s2k(passphrase):
     """Generate an AES-256 key from a passphrase ("string to key").
@@ -160,9 +153,10 @@ def s2k(passphrase):
         bytes: the derived AES-256 key (256 bits = 32 bytes)
     """
     s2k = String2Key()
-    # TODO: what salt to use (must be static or must be passed in)?
-    s2k.salt = b'aaaaaaaa'
-    # TODO: what S2K type and hash algorithm to use?
+    # In OpenPGP, the S2K salt is generated randomly and included in the
+    # private key packet as the "string-to-key specifier" (see RFC 4880 §5.5.3)
+    s2k.salt = b'aaaaaaaa'  # os.urandom(8)
+    s2k.usage = 254
     s2k.specifier = String2KeyType.Iterated
     s2k.encalg = SymmetricKeyAlgorithm.AES256
     s2k.halg = HashAlgorithm.SHA256
